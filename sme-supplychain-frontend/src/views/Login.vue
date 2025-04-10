@@ -21,13 +21,14 @@
           <el-input
             v-model="form.password"
             placeholder="••••••••"
+            type="password"
             show-password
             clearable
           />
         </el-form-item>
 
         <div class="flex gap-2">
-          <el-button type="primary" class="w-full" @click="handleLogin">
+          <el-button type="primary" class="w-full" @click="handleLogin" :loading="loading">
             Login
           </el-button>
           <el-button class="w-full" @click="handleReset">
@@ -41,9 +42,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 
 const loginFormRef = ref()
+const router = useRouter()
 
 const form = ref({
   email: '',
@@ -64,13 +68,28 @@ const rules = {
   ]
 }
 
+const loading = ref(false)
+
 const handleLogin = () => {
-  loginFormRef.value?.validate((valid: boolean) => {
-    if (valid) {
+  loginFormRef.value?.validate(async (valid: boolean) => {
+    if (!valid) return
+
+    loading.value = true
+    try {
+      //  向后端发送登录请求
+      const res = await axios.post('/api/auth/login', form.value)
+
+      //登录成功 → 保存登录信息
+      localStorage.setItem('isLoggedIn', 'true')
+      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('user', JSON.stringify(res.data))
+
       ElMessage.success('Login successful!')
-      console.log('Logging in with:', form.value)
-    } else {
-      ElMessage.error('Please fix the errors and try again.')
+      router.push('/dashboard')
+    } catch (err: any) {
+      ElMessage.error(err.response?.data?.message || 'Login failed')
+    } finally {
+      loading.value = false
     }
   })
 }
@@ -79,3 +98,4 @@ const handleReset = () => {
   loginFormRef.value?.resetFields()
 }
 </script>
+

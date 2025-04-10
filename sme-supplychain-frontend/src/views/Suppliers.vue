@@ -1,96 +1,79 @@
 <template>
-    <div class="p-6">
-      <h2 class="text-2xl font-bold mb-4">🤝 Supplier Management</h2>
-  
-      <!-- 供应商表格 -->
-      <el-table :data="suppliers" border style="width: 100%">
-        <el-table-column prop="name" label="Supplier Name" />
-        <el-table-column prop="contact" label="Contact Person" />
-        <el-table-column prop="phone" label="Phone" />
-        <el-table-column prop="region" label="Region" />
-        <el-table-column prop="category" label="Category" />
-        <el-table-column prop="status" label="Status">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 'Active' ? 'success' : 'info'">
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="160">
-          <template #default="scope">
-            <el-button size="small" @click="viewSupplier(scope.row)">View</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-  
-      <!-- 弹出供应商详情 -->
-      <SupplierDetailDialog
-        v-if="selectedSupplier"
-        v-model:visible="dialogVisible"
-        :supplier="selectedSupplier"
-        @order="handleOrder"
-      />
+  <div class="p-6">
+    <h2 class="text-2xl font-bold mb-4">🤝 Supplier Management</h2>
+
+    <!-- 搜索 -->
+    <div class="flex items-center gap-4 mb-4">
+      <el-input v-model="searchKeyword" placeholder="Search by name" clearable />
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref } from 'vue'
-  import SupplierDetailDialog from '@/views/dialogs/SupplierDetailDialog.vue'
-  
-  interface Product {
-    name: string
-    price: number
-    lastPurchased: string
-    quantity?: number
+
+    <!-- 表格 -->
+    <el-table :data="filteredSuppliers" border style="width: 100%">
+      <el-table-column prop="companyName" label="Supplier Name" />
+      <el-table-column prop="contact" label="Contact" />
+      <el-table-column prop="email" label="Email" />
+      <el-table-column prop="phone" label="Phone" />
+      <el-table-column prop="address" label="Address" />
+      <el-table-column label="Actions" width="160">
+        <template #default="scope">
+          <el-button size="small" @click="viewSupplier(scope.row)">View</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 弹窗组件（始终挂载，避免销毁报错） -->
+    <SupplierDetailDialog
+      v-model:visible="dialogVisible"
+      :supplier="selectedSupplier"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import SupplierDetailDialog from '@/views/dialogs/SupplierDetailDialog.vue'
+
+interface Supplier {
+  id: number
+  companyName: string
+  contact: string
+  email: string
+  phone: string
+  address?: string
+}
+
+const suppliers = ref<Supplier[]>([
+  {
+    id: 1,
+    companyName: 'Shanghai Tech Co.',
+    contact: 'Liu Wei',
+    email: 'liuwei@shtech.com',
+    phone: '13800000000',
+    address: 'No.88 Science Park, Shanghai'
+  },
+  {
+    id: 2,
+    companyName: 'Guangdong Supply Ltd.',
+    contact: 'Zhao Min',
+    email: 'zhaomin@gdsupply.com',
+    phone: '13711112222',
+    address: 'Industrial Ave, Guangzhou'
   }
-  
-  interface Supplier {
-    name: string
-    contact: string
-    phone: string
-    region: string
-    category: string
-    status: string
-    products: Product[]
-  }
-  
-  const dialogVisible = ref(false)
-  const selectedSupplier = ref<Supplier | null>(null)
-  
-  const suppliers = ref<Supplier[]>([
-    {
-      name: 'Shanghai Tech Co.',
-      contact: 'Liu Wei',
-      phone: '13800000000',
-      region: 'Shanghai, China',
-      category: 'Electronics',
-      status: 'Active',
-      products: [
-        { name: 'LCD Panel', price: 320.0, lastPurchased: '2025-03-10' },
-        { name: 'Battery Pack', price: 150.5, lastPurchased: '2025-03-12' }
-      ]
-    },
-    {
-      name: 'Guangdong Supply Ltd.',
-      contact: 'Zhao Min',
-      phone: '13711112222',
-      region: 'Guangdong, China',
-      category: 'Hardware',
-      status: 'Active',
-      products: [
-        { name: 'Motherboard', price: 800.0, lastPurchased: '2025-03-08' },
-        { name: 'SSD 512GB', price: 420.0, lastPurchased: '2025-03-05' }
-      ]
-    }
-  ])
-  
-  const viewSupplier = (supplier: Supplier) => {
-    selectedSupplier.value = supplier
-    dialogVisible.value = true
-  }
-  
-  const handleOrder = ({ product, quantity }: { product: Product; quantity: number }) => {
-    alert(`Order placed: ${product.name} x ${quantity}`)
-  }
-  </script>
-  
+])
+
+const searchKeyword = ref('')
+const selectedSupplier = ref<Supplier | null>(null)
+const dialogVisible = ref(false)
+
+const filteredSuppliers = computed(() => {
+  return suppliers.value.filter(s =>
+    s.companyName.toLowerCase().includes(searchKeyword.value.toLowerCase())
+  )
+})
+
+const viewSupplier = (supplier: Supplier) => {
+  console.log('Selected supplier:', supplier)
+  selectedSupplier.value = supplier
+  dialogVisible.value = true
+}
+</script>
