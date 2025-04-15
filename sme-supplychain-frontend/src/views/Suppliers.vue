@@ -1,79 +1,91 @@
 <template>
   <div class="p-6">
-    <h2 class="text-2xl font-bold mb-4">🤝 Supplier Management</h2>
+    <h2 class="text-2xl font-bold mb-4">🔍 Supplier Search</h2>
 
-    <!-- 搜索 -->
-    <div class="flex items-center gap-4 mb-4">
-      <el-input v-model="searchKeyword" placeholder="Search by name" clearable />
+    <!-- 搜索区域 -->
+    <div class="flex flex-col md:flex-row gap-4 mb-6">
+      <el-input v-model="keyword" placeholder="Search product keyword or category" clearable style="width: 240px" />
+      <el-input v-model="industry" placeholder="Search industry (e.g. automotive)" clearable style="width: 240px" />
+      <el-button type="primary" @click="fetchSuppliers">Search</el-button>
     </div>
 
-    <!-- 表格 -->
-    <el-table :data="filteredSuppliers" border style="width: 100%">
-      <el-table-column prop="companyName" label="Supplier Name" />
-      <el-table-column prop="contact" label="Contact" />
-      <el-table-column prop="email" label="Email" />
-      <el-table-column prop="phone" label="Phone" />
-      <el-table-column prop="address" label="Address" />
-      <el-table-column label="Actions" width="160">
-        <template #default="scope">
-          <el-button size="small" @click="viewSupplier(scope.row)">View</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 公司卡片列表 -->
+    <div class="grid grid-cols-1 gap-4">
+      <CompanyCard
+        v-for="company in paginatedSuppliers"
+        :key="company.id"
+        :company="company"
+        @click="goToCompanyDetail(company.id)"
+      />
+    </div>
 
-    <!-- 弹窗组件（始终挂载，避免销毁报错） -->
-    <SupplierDetailDialog
-      v-model:visible="dialogVisible"
-      :supplier="selectedSupplier"
-    />
+    <!-- 分页器 -->
+    <div class="mt-6 text-right">
+      <el-pagination
+        v-if="suppliers.length > pageSize"
+        layout="prev, pager, next"
+        :total="suppliers.length"
+        :page-size="pageSize"
+        v-model:current-page="currentPage"
+        background
+      />
+    </div>
+
+    <!-- 空状态 -->
+    <el-empty v-if="suppliers.length === 0" description="No suppliers found" class="mt-10" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import SupplierDetailDialog from '@/views/dialogs/SupplierDetailDialog.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import CompanyCard from '@/components/CompanyCard.vue'
 
-interface Supplier {
-  id: number
-  companyName: string
-  contact: string
-  email: string
-  phone: string
-  address?: string
-}
+const router = useRouter()
+const keyword = ref('')
+const industry = ref('')
+const suppliers = ref<any[]>([])
+const currentPage = ref(1)
+const pageSize = 6
 
-const suppliers = ref<Supplier[]>([
-  {
-    id: 1,
-    companyName: 'Shanghai Tech Co.',
-    contact: 'Liu Wei',
-    email: 'liuwei@shtech.com',
-    phone: '13800000000',
-    address: 'No.88 Science Park, Shanghai'
-  },
-  {
-    id: 2,
-    companyName: 'Guangdong Supply Ltd.',
-    contact: 'Zhao Min',
-    email: 'zhaomin@gdsupply.com',
-    phone: '13711112222',
-    address: 'Industrial Ave, Guangzhou'
-  }
-])
-
-const searchKeyword = ref('')
-const selectedSupplier = ref<Supplier | null>(null)
-const dialogVisible = ref(false)
-
-const filteredSuppliers = computed(() => {
-  return suppliers.value.filter(s =>
-    s.companyName.toLowerCase().includes(searchKeyword.value.toLowerCase())
-  )
+// 当前页供应商数据
+const paginatedSuppliers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+  return suppliers.value.slice(start, end)
 })
 
-const viewSupplier = (supplier: Supplier) => {
-  console.log('Selected supplier:', supplier)
-  selectedSupplier.value = supplier
-  dialogVisible.value = true
+// 查询供应商公司列表
+const fetchSuppliers = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.get('/api/suppliers/search', {
+      params: { keyword: keyword.value, industry: industry.value },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    suppliers.value = res.data
+    currentPage.value = 1 // 重置分页
+  } catch (err) {
+    ElMessage.error('Failed to fetch suppliers')
+  }
+}
+
+// 页面加载时默认请求一次
+onMounted(() => {
+  fetchSuppliers()
+})
+
+// 行业字段变化时自动刷新（可选增强）
+watch(industry, () => {
+  if (!keyword.value) fetchSuppliers()
+})
+
+// 跳转到公司详情页
+const goToCompanyDetail = (id: number) => {
+  router.push(`/suppliers/${id}`)
 }
 </script>
+
+<style scoped></style>

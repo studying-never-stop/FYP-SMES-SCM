@@ -24,6 +24,15 @@
 
     <!-- 用户表格 -->
     <el-table :data="paginatedUsers" border style="width: 100%">
+            <el-table-column label="Avatar" width="100">
+        <template #default="scope">
+          <img
+            :src="scope.row.avatarUrl || '/default-avatar.png'"
+            alt="avatar"
+            class="w-10 h-10 object-cover rounded-full border"
+          />
+        </template>
+      </el-table-column>
       <el-table-column prop="username" label="Username" />
       <el-table-column prop="email" label="Email" />
       <el-table-column prop="role" label="Role">
@@ -63,6 +72,78 @@
       class="mt-4 text-right"
     />
 
+     <!-- 公司信息管理区域 -->
+     <el-card class="mt-8" shadow="always">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="text-xl font-semibold">🏢 Company Management</span>
+          <el-button v-if="!isEditingCompany" type="primary" @click="startEditCompany">Edit</el-button>
+          <div v-else class="flex gap-2">
+            <el-popconfirm title="Confirm update company info?" @confirm="saveCompanyInfo">
+              <template #reference>
+                <el-button type="success">Confirm</el-button>
+              </template>
+            </el-popconfirm>
+            <el-button @click="cancelEditCompany">Cancel</el-button>
+          </div>
+        </div>
+      </template>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <!-- 左侧：公司基础信息 -->
+        <el-form :model="companyInfo" label-width="120px" label-position="left">
+          <el-form-item label="Company Name">
+            <el-input v-model="companyInfo.name" :disabled="!isEditingCompany" />
+          </el-form-item>
+          <el-form-item label="Contact Phone">
+            <el-input v-model="companyInfo.phone" :disabled="!isEditingCompany" />
+          </el-form-item>
+          <el-form-item label="Email">
+            <el-input v-model="companyInfo.email" :disabled="!isEditingCompany" />
+          </el-form-item>
+          <el-form-item label="Address">
+            <el-input v-model="companyInfo.address" :disabled="!isEditingCompany" />
+          </el-form-item>
+          <el-form-item label="Contact">
+            <el-input v-model="companyInfo.contact" :disabled="!isEditingCompany" />
+          </el-form-item>
+          <el-form-item label="Industry">
+            <el-input v-model="companyInfo.industry" :disabled="!isEditingCompany" />
+          </el-form-item>
+        </el-form>
+
+        <!-- 右侧：Logo 和描述 -->
+        <div class="space-y-4">
+          <div>
+            <label class="block mb-2 font-medium text-gray-700">Company Logo</label>
+            <div v-if="companyInfo.logoUrl" class="mb-2">
+              <img :src="companyInfo.logoUrl" alt="Logo" class="w-48 h-48 object-contain border rounded shadow" />
+            </div>
+            <el-upload
+              v-if="isEditingCompany"
+              :action="uploadUrl"
+              :show-file-list="false"
+              :on-success="handleUploadSuccess"
+              :before-upload="beforeUpload"
+              name="file"
+            >
+              <el-button type="primary">Upload New Logo</el-button>
+            </el-upload>
+          </div>
+
+          <div>
+            <label class="block mb-2 font-medium text-gray-700">Company Description</label>
+            <el-input
+              type="textarea"
+              v-model="companyInfo.description"
+              :disabled="!isEditingCompany"
+              :autosize="{ minRows: 4, maxRows: 6 }"
+            />
+          </div>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 用户新增/编辑弹窗 -->
     <UserFormDialog
       v-model:visible="dialogVisible"
@@ -76,6 +157,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import UserFormDialog from '@/views/dialogs/UserFormDialog.vue'
+import { ElMessage } from 'element-plus'
 
 /** 用户数据类型（需包含 id） */
 interface User {
@@ -168,22 +250,96 @@ const handlePageChange = (page: number) => {
 /** 设置角色标签样式 */
 const roleTagType = (role: string) => {
   switch (role) {
-    case 'admin': return 'danger'
-    case 'manager': return 'warning'
-    case 'warehouseman': return 'primary'
-    case 'staff': return 'success'
+    case 'superadmin': return 'danger'
+    case 'admin': return 'warning'
+    case 'manager': return 'success'
+    case 'warehouse': return 'primary'
+    case 'staff': return 'info'
     default: return 'default'
   }
 }
 
-// 页面加载完成自动拉取用户数据
 onMounted(() => {
   fetchUsers()
+})
+
+/** 公司信息状态 */
+const companyInfo = ref({
+  name: '',
+  address: '',
+  phone: '',
+  email: '',
+  description: '',
+  logoUrl: '',
+  contact: '',
+  industry: ''
+})
+
+const isEditingCompany = ref(false)
+
+const uploadUrl = '/api/companies/upload-logo' // 上传路径
+
+const handleUploadSuccess = (response: any) => {
+  ElMessage.success('Logo uploaded successfully')
+  companyInfo.value.logoUrl = response.url
+}
+
+const beforeUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) ElMessage.error('Only image files are allowed')
+  if (!isLt2M) ElMessage.error('Image size should be less than 2MB')
+
+  return isImage && isLt2M
+}
+
+const fetchCompanyInfo = async () => {
+  try {
+    const userRaw = localStorage.getItem('user')
+    const user = userRaw ? JSON.parse(userRaw) : null
+
+    if (!user?.companyId) {
+      ElMessage.error('No company information found.')
+      return
+    }
+
+    const res = await axios.get(`/api/companies/${user.companyId}`)
+    companyInfo.value = res.data
+  } catch (err) {
+    console.error('Error fetching company info:', err)
+    ElMessage.error('Failed to fetch company info')
+  }
+}
+
+
+const startEditCompany = () => {
+  isEditingCompany.value = true
+}
+
+const cancelEditCompany = () => {
+  isEditingCompany.value = false
+  fetchCompanyInfo()
+}
+
+const saveCompanyInfo = async () => {
+  try {
+    await axios.put('/api/companies/me', companyInfo.value)
+    isEditingCompany.value = false
+    await fetchCompanyInfo()
+    ElMessage.success('Company information updated successfully')
+  } catch (err) {
+    console.error('Failed to update company info:', err)
+    ElMessage.error('Failed to update company info')
+  }
+}
+
+onMounted(() => {
+  fetchCompanyInfo()
 })
 </script>
 
 <style scoped>
-/* 优化分页禁用态鼠标样式 */
 .el-pagination .is-disabled {
   cursor: default !important;
 }

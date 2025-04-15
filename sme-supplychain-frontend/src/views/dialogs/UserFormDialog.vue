@@ -10,6 +10,21 @@
         <el-input v-model="form.username" autocomplete="off" />
       </el-form-item>
 
+      <el-form-item label="Avatar">
+        <el-upload
+          class="avatar-uploader"
+          :show-file-list="false"
+          :action="uploadAvatarUrl"
+          name="file"
+          :on-success="handleAvatarSuccess"
+          :before-upload="beforeAvatarUpload"
+          :headers="uploadHeaders"
+        >
+          <img v-if="form.avatarUrl" :src="form.avatarUrl" class="avatar" />
+          <el-icon v-else><Plus /></el-icon>
+        </el-upload>
+      </el-form-item>
+
       <el-form-item label="Email" prop="email">
         <el-input v-model="form.email" autocomplete="off" />
       </el-form-item>
@@ -45,6 +60,7 @@
 import { ref, watch } from 'vue'
 import type { User } from '@/types/user'
 import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   visible: boolean
@@ -57,18 +73,37 @@ const formRef = ref()
 const form = ref<Partial<User>>({
   username: '',
   email: '',
-  role: '',
+  role: undefined,
   password: '',
+  avatarUrl: ''
 })
 
-// ✅ 校验规则：新增时密码必填，编辑时可选
+const uploadAvatarUrl = '/api/users/upload-avatar'
+
+const uploadHeaders = {
+  Authorization: `Bearer ${localStorage.getItem('token')}` // 加上 token，支持 JWT 守卫
+}
+
+const handleAvatarSuccess = (res: any) => {
+  form.value.avatarUrl = res.url
+  ElMessage.success('Avatar uploaded successfully')
+}
+
+const beforeAvatarUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isImage) ElMessage.error('Only image files are allowed')
+  if (!isLt2M) ElMessage.error('Image size should be less than 2MB')
+  return isImage && isLt2M
+}
+
 const rules = {
   username: [{ required: true, message: 'Username is required', trigger: 'blur' }],
   email: [{ required: true, message: 'Email is required', trigger: 'blur' }],
   role: [{ required: true, message: 'Role is required', trigger: 'change' }],
   password: [
     {
-      required: false, // 编辑时可不填
+      required: false,
       validator: (rule: any, value: string, callback: any) => {
         if (!form.value.id && !value) {
           callback(new Error('Password is required'))
@@ -81,25 +116,21 @@ const rules = {
   ],
 }
 
-// 🔁 编辑时预填数据
 watch(
   () => props.editingUser,
   (user) => {
     form.value = user
-      ? { ...user, password: '' } // 清空密码避免误提交旧密码
-      : { username: '', email: '', role: '', password: '' }
+      ? { ...user, password: '' }
+      : { username: '', email: '', role: undefined, password: '', avatarUrl: '' }
   },
   { immediate: true }
 )
 
-// 📤 提交处理
 const handleSubmit = () => {
   formRef.value.validate((valid: boolean) => {
     if (!valid) return
 
     const payload = { ...form.value }
-
-    // ✅ 如果是编辑模式且密码为空，移除 password 字段
     if (form.value.id && !form.value.password) {
       delete payload.password
     }
@@ -114,5 +145,12 @@ const handleSubmit = () => {
 .text-gray-500 {
   font-size: 12px;
   color: #999;
+}
+.avatar-uploader .avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dcdfe6;
 }
 </style>

@@ -76,15 +76,19 @@ const handleLogin = () => {
 
     loading.value = true
     try {
-      //  向后端发送登录请求
       const res = await axios.post('/api/auth/login', form.value)
 
-      //登录成功 → 保存登录信息
-      localStorage.setItem('isLoggedIn', 'true')
-      localStorage.setItem('token', res.data.token)
-      localStorage.setItem('user', JSON.stringify(res.data))
+      const { token, user } = res.data
 
-      ElMessage.success('Login successful!')
+      //  1. 分开保存 token 和用户信息
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+
+      //  2. 设置 axios 默认请求头（带上 Bearer Token）
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+      //  3. 跳转 + 提示
+      ElMessage.success(`Welcome back, ${user.username}!`)
       router.push('/dashboard')
     } catch (err: any) {
       ElMessage.error(err.response?.data?.message || 'Login failed')
@@ -93,6 +97,7 @@ const handleLogin = () => {
     }
   })
 }
+
 
 const handleReset = () => {
   loginFormRef.value?.resetFields()

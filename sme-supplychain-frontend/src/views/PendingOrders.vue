@@ -1,90 +1,93 @@
 <template>
-    <div class="p-6">
-      <h2 class="text-2xl font-bold mb-4">🕒 Pending Orders</h2>
-  
-      <!-- 订单表格 -->
-      <el-table :data="orders" border style="width: 100%">
-        <el-table-column prop="orderId" label="Order ID" />
-        <el-table-column prop="customer" label="Customer" />
-        <el-table-column prop="createdAt" label="Created At" />
-        <el-table-column prop="status" label="Status">
-          <template #default="scope">
-            <el-tag :type="statusColor(scope.row.status)">
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions" width="240">
-          <template #default="scope">
-            <el-button size="small" type="primary" @click="viewOrder(scope.row)">View</el-button>
-            <el-button size="small" type="success" @click="markAsCompleted(scope.row)">Complete</el-button>
-            <el-popconfirm
-              title="Are you sure to cancel this order?"
-              @confirm="cancelOrder(scope.row)"
-            >
-              <template #reference>
-                <el-button size="small" type="danger">Cancel</el-button>
-              </template>
-            </el-popconfirm>
-          </template>
-        </el-table-column>
-      </el-table>
-  
-      <!-- 分页器 -->
-      <div class="flex justify-end mt-4">
-        <el-pagination
-          layout="prev, pager, next"
-          :total="orders.length"
-          :page-size="5"
-          v-model:current-page="currentPage"
-        />
-      </div>
+  <div class="p-6">
+    <h2 class="text-2xl font-bold mb-4">📦 Pending Orders</h2>
+
+    <!-- 状态筛选器 -->
+    <el-select v-model="statusFilter" placeholder="Filter by status" clearable class="mb-4">
+      <el-option label="All" value="all" />
+      <el-option label="Created" value="created" />
+      <el-option label="Processing" value="processing" />
+      <el-option label="Packing" value="packing" />
+      <el-option label="Shipped" value="shipped" />
+    </el-select>
+
+    <!-- 订单列表 -->
+    <div v-if="paginatedOrders.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <OrderCard
+        v-for="order in paginatedOrders"
+        :key="order._id"
+        :order="order"
+        :currentUserRole="'seller'"
+        @updated="fetchOrders"
+      />
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref } from 'vue'
-  
-  interface Order {
-    orderId: string
-    customer: string
-    createdAt: string
-    status: string
+
+    <!-- 空状态 -->
+    <el-empty v-else description="No pending orders found" />
+
+    <!-- 分页器 -->
+    <div class="mt-6 text-center" v-if="filteredOrders.length > pageSize">
+      <el-pagination
+        layout="prev, pager, next"
+        :total="filteredOrders.length"
+        :page-size="pageSize"
+        v-model:current-page="currentPage"
+        background
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import OrderCard from '@/components/OrderCard.vue'
+
+const orders = ref<any[]>([])           // 全部订单
+const statusFilter = ref('all')         // 当前选中的状态筛选器
+const currentPage = ref(1)              // 当前页码
+const pageSize = 6                      // 每页显示数量
+const userRaw: any = localStorage.getItem('user')// 获取本地存储的公司 ID
+const user = userRaw ? JSON.parse(userRaw) : null // 解析为对象
+const currentCompanyId = user?.companyId
+
+
+// 获取订单数据
+const fetchOrders = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const baseUrl = '/api/orders'
+    const url = statusFilter.value === 'all'
+      ? baseUrl
+      : `${baseUrl}/status/${statusFilter.value}`
+
+    const res = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    orders.value = res.data
+    currentPage.value = 1
+  } catch (err) {
+    console.error('Failed to fetch orders:', err)
   }
-  
-  const currentPage = ref(1)
-  
-  const orders = ref<Order[]>([
-    { orderId: '#ORD-2023', customer: 'Star Inc.', createdAt: '2025-04-06 14:32', status: 'Processing' },
-    { orderId: '#ORD-2024', customer: 'Tech Ltd.', createdAt: '2025-04-06 15:10', status: 'Pending Confirmation' },
-    { orderId: '#ORD-2025', customer: 'Alpha Co.', createdAt: '2025-04-06 16:00', status: 'Packing' },
-    { orderId: '#ORD-2026', customer: 'Nova Group', createdAt: '2025-04-07 10:15', status: 'Pending Confirmation' },
-    { orderId: '#ORD-2027', customer: 'Beta Ltd.', createdAt: '2025-04-07 11:45', status: 'Processing' }
-  ])
-  
-  const statusColor = (status: string) => {
-    switch (status) {
-      case 'Pending Confirmation':
-        return 'warning'
-      case 'Packing':
-        return 'info'
-      case 'Processing':
-        return 'primary'
-      default:
-        return 'default'
-    }
+}
+
+// 筛选结果（不包含 completed 和 cancelled）
+const filteredOrders = computed(() => {
+  const allowedStatuses = ['created', 'processing', 'packing', 'shipped']
+  if (statusFilter.value === 'all') {
+    return orders.value.filter(order => allowedStatuses.includes(order.status) && order.sellerCompanyId === currentCompanyId )
   }
-  
-  const viewOrder = (order: Order) => {
-    alert(`Viewing order ${order.orderId}`)
-  }
-  
-  const markAsCompleted = (order: Order) => {
-    alert(`Marking ${order.orderId} as completed`)
-  }
-  
-  const cancelOrder = (order: Order) => {
-    alert(`Cancelled order ${order.orderId}`)
-  }
-  </script>
-  
+  return orders.value.filter(order => order.status === statusFilter.value && order.sellerCompanyId === currentCompanyId )
+})
+
+// 当前页的订单
+const paginatedOrders = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filteredOrders.value.slice(start, start + pageSize)
+})
+
+onMounted(fetchOrders)
+watch(statusFilter, fetchOrders)
+</script>
+
+<style scoped></style>
