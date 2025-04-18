@@ -17,7 +17,7 @@
       </el-table>
   
       <div class="mt-4 text-right text-lg font-semibold">
-        Total: ￥{{ totalPrice }}
+        Total: €{{ totalPrice }}
       </div>
   
       <template #footer>

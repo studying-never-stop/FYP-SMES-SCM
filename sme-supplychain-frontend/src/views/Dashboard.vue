@@ -1,150 +1,157 @@
 <template>
-  <div class="p-6">
-    <h1 class="text-2xl font-bold mb-4">📊 Dashboard</h1>
-
-    <!-- 四个统计卡片区域 -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <!-- 点击弹出订单详情 -->
-      <el-card shadow="hover" @click="orderDialogVisible = true">
-        <div class="text-sm text-gray-500 cursor-pointer" >Total Orders</div>
-        <div class="text-2xl font-bold">1,254</div>
-      </el-card>
-
-      <!-- 点击弹出发货详情 -->
-      <el-card shadow="hover" @click="pendingDialogVisible = true">
-        <div class="text-sm text-gray-500 cursor-pointer" >Pending Shipments</div>
-        <div class="text-2xl font-bold">328</div>
-      </el-card>
-
-      <!-- 点击弹出产品详情 -->
-      <el-card shadow="hover" @click="productDialogVisible = true">
-        <div class="text-sm text-gray-500 cursor-pointer" >Total Products</div>
-        <div class="text-2xl font-bold">980</div>
-      </el-card>
-
-      <!-- 点击弹出供应商详情 -->
-      <el-card shadow="hover" @click="supplierDialogVisible = true">
-        <div class="text-sm text-gray-500 cursor-pointer" >Suppliers</div>
-        <div class="text-2xl font-bold">24</div>
-      </el-card>
+  <div class="p-4 space-y-6">
+    <!-- 顶部卡片区 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div v-for="card in cards" :key="card.title" class="bg-white shadow-md rounded-xl p-4">
+        <div class="text-gray-500 text-sm">{{ card.title }}</div>
+        <div class="text-2xl font-semibold mt-1">{{ card.value }}</div>
+      </div>
     </div>
 
-    <!-- 首页概览图表 -->
+    <!-- 状态 + 趋势图区域 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <el-card>
-        <template #header>📈 Order Trends</template>
-        <v-chart class="h-72" :option="orderChartOption" autoresize />
-      </el-card>
-      <el-card>
-        <template #header>📦 Inventory Levels</template>
-        <v-chart class="h-72" :option="stockChartOption" autoresize />
-      </el-card>
+      <!-- 订单状态饼图 -->
+      <div class="bg-white p-4 shadow-md rounded-xl">
+        <div class="text-lg mb-2">Order status diagram</div>
+        <v-chart class="h-72" :option="statusOption" autoresize />
+      </div>
+
+      <!-- 订单趋势 + 销售额趋势（双折线） -->
+      <div class="bg-white p-4 shadow-md rounded-xl">
+        <div class="text-lg mb-2">Order and sales trends</div>
+        <v-chart class="h-72" :option="trendOption" autoresize />
+      </div>
     </div>
 
-    <!-- 引入四个弹窗组件 -->
-    <OrderOverviewDialog v-model:visible="orderDialogVisible" />
-    <PendingShipmentsDialog v-model:visible="pendingDialogVisible" />
-    <TotalProductsDialog v-model:visible="productDialogVisible" />
-    <SuppliersDialog v-model:visible="supplierDialogVisible" />
+    <!-- 底部两张柱状图 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 热门产品销量 -->
+      <div class="bg-white p-4 shadow-md rounded-xl">
+        <div class="text-lg mb-2">Sales volume of popular products</div>
+        <v-chart class="h-72" :option="productOption" autoresize />
+      </div>
+      <!-- 顶部客户公司 -->
+      <div class="bg-white p-4 shadow-md rounded-xl">
+        <div class="text-lg mb-2">Top customer Company</div>
+        <v-chart class="h-72" :option="buyerOption" autoresize />
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 import VChart from 'vue-echarts'
-import * as echarts from 'echarts/core'
-import {
-  LineChart,
-  BarChart
-} from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import 'echarts/core'
+import 'echarts/charts'
+import 'echarts/components'
+import 'echarts/renderers'
 
-// 引入四个弹窗分析组件
-import OrderOverviewDialog from '@/views/dialogs/OrderOverviewDialog.vue'
-import PendingShipmentsDialog from '@/views/dialogs/PendingShipmentsDialog.vue'
-import TotalProductsDialog from '@/views/dialogs/TotalProductsDialog.vue'
-import SuppliersDialog from '@/views/dialogs/SuppliersDialog.vue'
+// 卡片类型
+interface CardItem {
+  title: string
+  value: string | number
+}
 
-// 注册 ECharts 组件
-echarts.use([
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  LineChart,
-  BarChart,
-  CanvasRenderer
-])
+const cards = ref<CardItem[]>([])
+const statusOption = ref({})
+const trendOption = ref({})
+const productOption = ref({})
+const buyerOption = ref({})
 
-// 控制四个弹窗显示
-const orderDialogVisible = ref(false)
-const pendingDialogVisible = ref(false)
-const productDialogVisible = ref(false)
-const supplierDialogVisible = ref(false)
+onMounted(async () => {
+  const token = localStorage.getItem('token')
 
-// 仪表盘主图：订单趋势折线图
-const orderChartOption = ref({
-  xAxis: {
-    type: 'category',
-    data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  },
-  yAxis: {
-    type: 'value'
-  },
-  series: [
-    {
-      name: 'Orders',
-      type: 'line',
-      data: [120, 200, 150, 80, 70, 110, 130]
-    }
-  ]
-})
+  try {
+    // 卡片数据
+    const { data: summary } = await axios.get('/api/orderdata/summary', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    cards.value = [
+      { title: "Today's Orders", value: summary.todayOrderCount },
+      { title: 'Monthly Orders', value: summary.monthlyOrderCount },
+      { title: 'Completion Rate', value: summary.completedRate },
+      { title: 'Monthly Revenue', value: '€' + summary.monthlyRevenue.toLocaleString() }
+    ]
 
-// 仓库库存水平图（带颜色判断）
-const stockData = [
-  { name: 'Product A', value: 40 },
-  { name: 'Product B', value: 75 },
-  { name: 'Product C', value: 120 },
-  { name: 'Product D', value: 95 }
-]
-
-const stockChartOption = ref({
-  tooltip: {},
-  xAxis: {
-    type: 'category',
-    data: stockData.map(item => item.name)
-  },
-  yAxis: {
-    type: 'value'
-  },
-  series: [
-    {
-      name: 'Stock',
-      type: 'bar',
-      data: stockData.map(item => ({
-        value: item.value,
-        itemStyle: {
-          color:
-            item.value < 50
-              ? '#f56c6c' // 红色：库存紧张
-              : item.value < 100
-              ? '#e6a23c' // 黄色：库存预警
-              : '#409EFF' // 蓝色：库存充足
+    // 状态饼图
+    const { data: statusRes } = await axios.get('/api/orderdata/status-summary', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    statusOption.value = {
+      tooltip: { trigger: 'item' },
+      series: [
+        {
+          name: 'Order Status',
+          type: 'pie',
+          radius: '65%',
+          data: statusRes.statusCounts.map((s: any) => ({ name: s.status, value: s.count }))
         }
-      }))
+      ]
     }
-  ]
+
+    // 订单 & 收入趋势图
+    const [trendRes, revenueRes] = await Promise.all([
+      axios.get('/api/orderdata/trend', { headers: { Authorization: `Bearer ${token}` } }),
+      axios.get('/api/orderdata/revenue-trend', { headers: { Authorization: `Bearer ${token}` } })
+    ])
+    const xData = trendRes.data.trend.map((t: any) => t.date)
+    trendOption.value = {
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['Orders', 'Revenue'] },
+      xAxis: { type: 'category', data: xData },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Orders', type: 'line', data: trendRes.data.trend.map((t: any) => t.count) },
+        { name: 'Revenue', type: 'line', data: revenueRes.data.revenue.map((r: any) => r.total) }
+      ]
+    }
+
+    // 热门产品销量
+    const { data: topProducts } = await axios.get('/api/orderdata/top-products', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    productOption.value = {
+      tooltip: {},
+      xAxis: { type: 'value' },
+      yAxis: {
+        type: 'category',
+        data: topProducts.map((p: any) => p.name),
+        inverse: true
+      },
+      series: [
+        {
+          type: 'bar',
+          data: topProducts.map((p: any) => p.quantity)
+        }
+      ]
+    }
+
+    // 顶部客户公司
+    const { data: topBuyers } = await axios.get('/api/orderdata/top-buyers', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    buyerOption.value = {
+      tooltip: {},
+      xAxis: { type: 'value' },
+      yAxis: {
+        type: 'category',
+        data: topBuyers.map((b: any) => b.name),
+        inverse: true
+      },
+      series: [
+        {
+          type: 'bar',
+          data: topBuyers.map((b: any) => b.count)
+        }
+      ]
+    }
+  } catch (err) {
+    console.error('Dashboard load error:', err)
+  }
 })
 </script>
 
 <style scoped>
-.v-chart {
-  width: 100%;
-}
 </style>

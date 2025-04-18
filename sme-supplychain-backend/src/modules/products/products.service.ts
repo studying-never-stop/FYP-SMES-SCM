@@ -78,4 +78,9 @@ export class ProductService {
   
     return await query.getMany()
   }
+
+  //id查找单个物品
+  async findById(id: number): Promise<Product | null> {
+    return this.productRepo.findOne({ where: { id } });
+  }
 }

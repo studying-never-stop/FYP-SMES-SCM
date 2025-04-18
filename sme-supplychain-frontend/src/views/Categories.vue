@@ -3,19 +3,19 @@
     <h2 class="text-2xl font-bold mb-4">Category Overview</h2>
 
     <el-table :data="categories" border style="width: 100%">
-      <el-table-column prop="category" label="分类名称" />
-      <el-table-column label="价格区间">
+      <el-table-column prop="category" label="Classification name" />
+      <el-table-column label="Price range">
         <template #default="{ row }">
           €{{ row.minPrice }} ~ €{{ row.maxPrice }}
         </template>
       </el-table-column>
-      <el-table-column prop="totalStock" label="库存总量" />
-      <el-table-column label="近期销量">--</el-table-column>
-      <el-table-column label="近期入库">--</el-table-column>
-      <el-table-column label="操作" width="120">
+      <el-table-column prop="totalStock" label="Total inventory" />
+      <el-table-column label="Recent sales volume">--</el-table-column>
+      <el-table-column label="Recently warehoused">--</el-table-column>
+      <el-table-column label="Controls" width="120">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="goToCategory(row.category)">
-            查看产品
+            View the product
           </el-button>
         </template>
       </el-table-column>

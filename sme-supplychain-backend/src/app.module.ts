@@ -13,6 +13,9 @@ import { CategoryOverviewModule } from './modules/category-overview/category-ove
 import { OrderModule } from './modules/order/order.module';
 import { OrderRecordModule } from './modules/order-record/order-record.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
+import { OrderDataModule } from './orderdata/orderdata.module';
+import { InventoryDataModule } from './modules/inventorydata/inventorydata.module';
+import { PredictionModule } from './modules/prediction/prediction.module';
 
 
 
@@ -43,6 +46,9 @@ import { SupplierModule } from './modules/supplier/supplier.module';
     OrderModule,
     OrderRecordModule,
     SupplierModule,
+    OrderDataModule,
+    InventoryDataModule,
+    PredictionModule,
   ],
 })
 

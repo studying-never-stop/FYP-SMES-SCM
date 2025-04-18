@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { ILike, Repository } from 'typeorm'
+import { ILike, In, Repository } from 'typeorm'
 import { Company } from '@/entities/company.entity'
 import { User, UserRole } from '@/entities/user.entity'
 
@@ -82,5 +82,11 @@ export class CompanyService {
         where: { name: ILike(`%${keyword}%`) },
         take: 10,
       })
+    }
+    //通过Id查公司信息
+    async findByIds(ids: number[]): Promise<Company[]> {
+      return this.companyRepo.find({
+        where: { id: In(ids) }
+      });
     }
 }
