@@ -15,6 +15,7 @@ import { InventoryRecord, InventoryRecordSchema } from '@/mongo/inventory-record
     ProductsModule,
   ],
   providers: [PredictionService],
-  controllers: [PredictionController]
+  controllers: [PredictionController],
+  exports: [PredictionService],
 })
 export class PredictionModule {}

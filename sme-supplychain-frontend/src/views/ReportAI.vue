@@ -1,124 +1,256 @@
 <template>
-    <div class="p-6">
-      <h2 class="text-2xl font-bold mb-4">🧠 AI-Powered Report</h2>
-  
-      <!-- 时间选择与操作 -->
-      <div class="flex items-center gap-4 mb-6">
-        <el-date-picker v-model="dateRange" type="daterange" start-placeholder="Start date" end-placeholder="End date" />
-        <el-button type="primary" @click="generateReport">📄 Generate Report</el-button>
+  <div class="report-ai-container">
+    <!-- 报告区域 -->
+    <el-card class="report-section">
+      <template #header>
+        <div class="card-header">
+          <span>Monthly Operation Report</span>
+          <div class="btn-group">
+            <el-button type="primary" @click="generateReport" :loading="loading">Generate</el-button>
+            <el-button @click="copyReport" :disabled="!report">Copy</el-button>
+            <el-button @click="downloadReport" :disabled="!report">Download</el-button>
+            <el-button @click="exportPDF" :disabled="!report">Export PDF</el-button>
+          </div>
+        </div>
+      </template>
+      <div id="pdf-target">
+        <div v-if="report">
+          <pre class="report-content">{{ report }}</pre>
+        </div>
+        <div v-else>
+          <el-empty description="No report generated yet" />
+        </div>
       </div>
-  
-      <!-- 智能总结段 -->
-      <el-card class="mb-6">
-        <template #header>📌 Summary</template>
-        <p>
-          本月共生成订单 <strong>1,254</strong> 单，较上月增长 <strong>12%</strong>。最活跃地区为 <strong>Dublin</strong>。
-          完成率达 <strong>92%</strong>，客户满意度保持稳定。预计下周订单仍将保持增长。
-        </p>
-        <p class="mt-2 text-gray-500 italic">* 本段内容由 AI 自动生成，使用静态模拟占位，后期可接入模型 API *</p>
-      </el-card>
-  
-      <!-- 图表区域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 订单趋势 -->
-        <el-card>
-          <template #header>📈 Order Forecast Trend</template>
-          <v-chart class="h-72" :option="orderTrendOption" autoresize />
-        </el-card>
-  
-        <!-- 客户增长 -->
-        <el-card>
-          <template #header>👥 Customer Growth</template>
-          <v-chart class="h-72" :option="customerGrowthOption" autoresize />
-        </el-card>
-  
-        <!-- 热门产品 -->
-        <el-card>
-          <template #header>🔥 Predicted Hot Products</template>
-          <v-chart class="h-72" :option="productPieOption" autoresize />
-        </el-card>
+    </el-card>
+
+    <!-- AI 助手区域 -->
+    <div class="ai-card">
+      <div class="card-header">
+        <span>AI Assistant</span>
+        <el-button type="danger" size="small" @click="clearChat">Clear</el-button>
+      </div>
+
+      <div class="ai-card-body">
+        <div ref="chatContainer" class="chat-history">
+          <div
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            class="chat-message"
+            :class="msg.role"
+          >
+            <div v-if="msg.role === 'user'"><strong>You:</strong> {{ msg.content }}</div>
+            <div v-else class="markdown" v-html="renderMarkdown(msg.content)"></div>
+          </div>
+        </div>
+
+        <div class="chat-input">
+          <el-input v-model="input" placeholder="Ask something..." @keyup.enter="sendMessage" />
+          <el-button type="primary" @click="sendMessage" :disabled="!input">Send</el-button>
+        </div>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref } from 'vue'
-  import VChart from 'vue-echarts'
-  import * as echarts from 'echarts/core'
-  import {
-    LineChart,
-    PieChart,
-    BarChart
-  } from 'echarts/charts'
-  import {
-    TitleComponent,
-    TooltipComponent,
-    LegendComponent,
-    GridComponent
-  } from 'echarts/components'
-  import { CanvasRenderer } from 'echarts/renderers'
-  
-  echarts.use([
-    TitleComponent,
-    TooltipComponent,
-   LegendComponent,
-    GridComponent,
-    LineChart,
-    PieChart,
-    BarChart,
-    CanvasRenderer
-  ])
-  
-  const dateRange = ref<[Date, Date] | null>(null)
-  const generateReport = () => {
-    // 模拟生成报告过程
-    console.log('Report generated for:', dateRange.value)
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick } from 'vue'
+import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { marked } from 'marked'
+import html2pdf from 'html2pdf.js'
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const report = ref<string>('')
+const loading = ref(false)
+const input = ref('')
+const messages = ref<ChatMessage[]>([
+  {
+    role: 'assistant',
+    content: 'Hi! I’m your AI assistant. Ask me anything about your company’s operations.'
   }
-  
-  // 图表配置
-  const orderTrendOption = ref({
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
-    yAxis: { type: 'value' },
-    series: [
-      {
-        name: 'Orders',
-        type: 'line',
-        smooth: true,
-        data: [120, 160, 190, 210, 250, 300, 280]
-      }
-    ]
-  })
-  
-  const customerGrowthOption = ref({
-    tooltip: {},
-    xAxis: {
-      type: 'category',
-      data: ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-    },
-    yAxis: { type: 'value' },
-    series: [{
-      name: 'New Customers',
-      type: 'bar',
-      data: [25, 45, 60, 85]
-    }]
-  })
-  
-  const productPieOption = ref({
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
-    series: [{
-      name: 'Product Share',
-      type: 'pie',
-      radius: '65%',
-      center: ['50%', '50%'],
-      data: [
-        { value: 420, name: 'SSD 512GB' },
-        { value: 320, name: 'LCD Panel' },
-        { value: 280, name: 'Battery' },
-        { value: 180, name: 'Motherboard' }
-      ]
-    }]
-  })
-  </script>
-  
+])
+const chatContainer = ref<HTMLElement | null>(null)
+const headers = {
+  Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+}
+
+// 报告生成
+const generateReport = async () => {
+  loading.value = true
+  try {
+    const { data } = await axios.post('/api/report-ai/generate', {}, { headers })
+    report.value = data
+    ElMessage.success('Report generated successfully!')
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('Failed to generate report')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 复制
+const copyReport = async () => {
+  try {
+    await navigator.clipboard.writeText(report.value)
+    ElMessage.success('Copied to clipboard!')
+  } catch {
+    ElMessage.error('Copy failed!')
+  }
+}
+
+// 下载 txt
+const downloadReport = () => {
+  const blob = new Blob([report.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'monthly_report.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 导出 pdf
+const exportPDF = () => {
+  const target = document.getElementById('pdf-target')
+  if (!target) return
+
+  const opt = {
+    margin: 0.5,
+    filename: `monthly_report_${new Date().toISOString().slice(0, 10)}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  }
+
+  html2pdf().from(target).set(opt).save()
+}
+
+// 聊天发送
+const sendMessage = async () => {
+  if (!input.value.trim()) return
+  messages.value.push({ role: 'user', content: input.value })
+
+  try {
+    const { data } = await axios.post<string>('/api/ai-assistant/chat', {
+      messages: messages.value
+    }, { headers })
+
+    messages.value.push({ role: 'assistant', content: data })
+    input.value = ''
+
+    await nextTick()
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    }
+  } catch (err) {
+    console.error(err)
+    ElMessage.error('Failed to communicate with AI')
+  }
+}
+
+// 清空聊天
+const clearChat = () => {
+  messages.value = [
+    {
+      role: 'assistant',
+      content: 'Hi! I’m your AI assistant. Ask me anything about your company’s operations.'
+    }
+  ]
+}
+
+// markdown 渲染
+const renderMarkdown = (text: string) => marked.parse(text)
+</script>
+
+<style scoped>
+.report-ai-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  gap: 12px;
+  padding: 16px;
+}
+
+.report-section {
+  flex: 2;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ✅ AI 助手卡片区域（不再使用 el-card） */
+.ai-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  padding: 12px;
+  height: 33vh;
+  overflow: hidden;
+}
+
+.ai-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.chat-history {
+  flex: 1;
+  padding: 8px;
+  background-color: #fafafa;
+  border-radius: 6px;
+}
+
+.chat-message {
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.chat-message.user {
+  text-align: right;
+}
+
+.chat-message.assistant {
+  text-align: left;
+}
+
+.markdown {
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.chat-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.report-content {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+}
+</style>

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage } from 'mongoose';
-import { Order, OrderDocument } from '../mongo/order.schema';
+import { Order, OrderDocument } from '../../mongo/order.schema';
 import { ProductService } from '@/modules/products/products.service';
 import { CompanyService } from '@/modules/company/company.service';
 

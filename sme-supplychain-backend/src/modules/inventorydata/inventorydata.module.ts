@@ -12,6 +12,7 @@ import { InventoryDataController } from './inventorydata.controller'
     MongooseModule.forFeature([{ name: InventoryRecord.name, schema: InventoryRecordSchema }])
   ],
   providers: [InventoryDataService],
-  controllers: [InventoryDataController]
+  controllers: [InventoryDataController],
+  exports: [InventoryDataService],
 })
 export class InventoryDataModule {}
