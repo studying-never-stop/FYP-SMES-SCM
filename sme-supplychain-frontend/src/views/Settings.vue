@@ -125,6 +125,7 @@
               :show-file-list="false"
               :on-success="handleUploadSuccess"
               :before-upload="beforeUpload"
+              :headers="uploadHeaders"
               name="file"
             >
               <el-button type="primary">Upload New Logo</el-button>
@@ -278,6 +279,10 @@ const companyInfo = ref({
 const isEditingCompany = ref(false)
 
 const uploadUrl = '/api/companies/upload-logo' // 上传路径
+
+const uploadHeaders = {
+  Authorization: `Bearer ${localStorage.getItem('token')}` 
+}
 
 const handleUploadSuccess = (response: any) => {
   ElMessage.success('Logo uploaded successfully')

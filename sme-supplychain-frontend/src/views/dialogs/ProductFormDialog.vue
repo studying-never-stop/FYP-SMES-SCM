@@ -31,6 +31,7 @@
           :show-file-list="false"
           :on-success="handleUploadSuccess"
           :before-upload="beforeUpload"
+          :headers="uploadHeaders"
         >
           <img v-if="form.imageUrl" :src="form.imageUrl" class="w-24 h-24 object-cover rounded border" />
           <el-button v-else>Upload Image</el-button>
@@ -67,6 +68,10 @@ const form = ref({
 })
 
 const uploadUrl = '/api/products/upload-image'
+
+const uploadHeaders = {
+    Authorization: `Bearer ${localStorage.getItem('token')}`
+  }
 
 const rules = {
   name: [{ required: true, message: 'Name required', trigger: 'blur' }],

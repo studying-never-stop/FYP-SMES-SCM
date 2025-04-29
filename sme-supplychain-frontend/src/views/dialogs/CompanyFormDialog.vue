@@ -37,6 +37,7 @@
             :show-file-list="false"
             :on-success="handleUploadSuccess"
             :before-upload="beforeUpload"
+            :headers="uploadHeaders"
           >
             <img v-if="form.logoUrl" :src="form.logoUrl" class="w-24 h-24 object-contain border" />
             <el-button v-else>Upload Logo</el-button>
@@ -75,6 +76,10 @@
   })
   
   const uploadUrl = '/api/companies/upload-logo'
+
+  const uploadHeaders = {
+    Authorization: `Bearer ${localStorage.getItem('token')}` // 加上 token，支持 JWT 守卫
+  }
   
   const handleUploadSuccess = (res: any) => {
     form.value.logoUrl = res.url

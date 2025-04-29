@@ -71,13 +71,13 @@ export class CompanyController {
     return this.companyService.findByIndustry(industry)
     }
 
-    //
+    //上传图片
     @Post('upload-logo')
     @UseGuards(AuthGuard('jwt'))
     @UseInterceptors(
       FileInterceptor('file', {
         storage: diskStorage({
-          destination: '../../../upload/companies', // ✅ 保存到 upload/companies/
+          destination: join(process.cwd(), 'upload/companies'), //  保存到 upload/companies/
           filename: (req, file, cb) => {
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
             const ext = extname(file.originalname)

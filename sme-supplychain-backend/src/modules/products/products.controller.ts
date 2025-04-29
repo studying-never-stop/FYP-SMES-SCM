@@ -16,7 +16,7 @@ import { ProductService } from './products.service'
 import { AuthGuard } from '@nestjs/passport'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
-import { extname } from 'path'
+import { extname, join } from 'path'
 import { Request } from 'express'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -87,7 +87,7 @@ export class ProductController {
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './upload/products',
+      destination: join(process.cwd(), 'upload/products'),
       filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
         const ext = extname(file.originalname)
@@ -95,6 +95,7 @@ export class ProductController {
       },
     }),
   }))
+  
   async uploadImage(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
     const url = `${req.protocol}://${req.get('host')}/upload/products/${file.filename}`
     return { url }
